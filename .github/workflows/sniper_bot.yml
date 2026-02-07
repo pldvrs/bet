@@ -1,0 +1,51 @@
+# Sniper V1 Pro — Pipeline quotidien automatique
+# ==============================================
+# Utilise run_pipeline.py (01_ingest_data → 02_train_models → 03_predict_daily).
+# Planning (heure Paris = UTC+1 en hiver) : 08h00 tous les jours.
+
+name: Sniper Bot Daily
+
+on:
+  schedule:
+    # 08:00 Paris (CET) = 07:00 UTC
+    - cron: "0 7 * * *"
+  workflow_dispatch:  # Lancer à la main depuis l'onglet Actions
+
+jobs:
+  sniper-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: "Pipeline 01 → 02 → 03 (run_pipeline.py)"
+        env:
+          API_BASKETBALL_KEY: ${{ secrets.API_BASKETBALL_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python run_pipeline.py
+
+      - name: "Envoi alertes SNIPER TARGET (optionnel)"
+        if: success()
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python send_alerts.py

@@ -1,0 +1,11 @@
+supabase
+python-dotenv
+requests
+numpy
+pandas
+streamlit
+plotly
+scipy
+scikit-learn
+xgboost
+lightgbm

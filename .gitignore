@@ -1,0 +1,25 @@
+# Secrets — ne jamais commiter
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+
+# Modèles (régénérés par 02_train_models.py sur le runner)
+*.pkl
+features_meta.json
+features_meta_antitrap.json
+features_meta_totals.json
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*.log
