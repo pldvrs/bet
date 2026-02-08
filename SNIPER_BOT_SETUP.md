@@ -27,6 +27,13 @@ Dans **GitHub** → ton repo → **Settings** → **Secrets and variables** → 
 
 Le code trie toujours par date et utilise un `TimeSeriesSplit` strict.
 
+## Architecture Write Once, Read Many
+
+- **03_predict_daily.py** : s’exécute **une seule fois par jour** (08h00 via le pipeline ou manuellement). Charge uniquement les modèles `.pkl` (aucun ré-entraînement), génère les prédictions J+1 à J+3 et écrit dans **daily_projections_v2**.
+- **04_app_dashboard.py** : **ne lance jamais** le script 03 ni aucun calcul ML. Il fait un simple `SELECT` sur `daily_projections_v2`. Les pronos restent stables à chaque rechargement de page.
+
+Avant la première utilisation : exécuter la migration SQL `schema_migration_daily_projections_v2.sql` dans Supabase (création de la table `daily_projections_v2`).
+
 ## Lancement manuel
 
 Dans **Actions** → **Sniper Bot Daily** → **Run workflow**

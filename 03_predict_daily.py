@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-03_predict_daily.py — Le Cerveau (Architecture ETL Sniper V1 Pro)
-===================================================================
-Charge les modèles (proba, spread, totals), récupère les matchs à venir depuis
-Supabase (games_history, sans appels API), calcule les prédictions et enregistre
-les résultats dans daily_projections.
+03_predict_daily.py — Le Cerveau (Write Once, Read Many)
+=========================================================
+DÉTERMINISTE : charge uniquement les modèles .pkl existants (jamais de ré-entraînement).
+Génère les prédictions pour tous les matchs J+1 à J+3, insert/upsert dans daily_projections_v2.
+Si une ligne existe déjà pour (game_id, date_prediction=aujourd'hui), on ne la modifie pas
+sauf si les cotes ont changé significativement (seuil 5%).
+Génère reasoning_text pour expliquer le pari.
 
-Totals : model_totals.predict() → total réel (ex: 168 pts), puis
-  proj_home = (total + spread) / 2, proj_away = (total - spread) / 2.
+À lancer UNE FOIS par jour (ex: 08h00 via run_pipeline ou cron). Le dashboard ne lance jamais ce script.
 
 Usage:
   python 03_predict_daily.py
@@ -22,6 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+import pytz
 
 from dotenv import load_dotenv
 
@@ -44,6 +46,12 @@ SNIPER_TARGET_EV_THRESHOLD = 0.05
 EDGE_MAX_BET = 10.0
 EDGE_VALUE = 5.0
 DEFAULT_TOTAL_FALLBACK = 165.0
+PARIS_TZ = pytz.timezone("Europe/Paris")
+
+
+def _today_paris() -> date:
+    """Date du jour en heure de Paris (évite UTC/serveur)."""
+    return datetime.now(PARIS_TZ).date()
 
 
 def _get_team_name(supabase, team_id: int) -> str:
@@ -63,10 +71,10 @@ def _get_team_name(supabase, team_id: int) -> str:
 
 
 def _day_label(game_date: str) -> str:
-    """Aujourd'hui / Demain / J+2."""
+    """Aujourd'hui / Demain / J+2 (référence = jour en Europe/Paris)."""
     try:
         d = datetime.strptime((game_date or "")[:10], "%Y-%m-%d").date()
-        today = date.today()
+        today = _today_paris()
         delta = (d - today).days
         if delta == 0:
             return "Aujourd'hui"
@@ -184,10 +192,12 @@ def get_ml_prediction(
     game_date: str,
     league_id: Optional[int],
     season: Optional[str],
+    supabase=None,
 ) -> Optional[Dict[str, Any]]:
     """
     Prédiction ML : proba home, spread, total (model_totals), puis proj_home, proj_away.
-    Utilise training_engine pour la ligne de features et predict_total_points.
+    Si model_totals renvoie NaN ou plante : fallback (Avg_Points_Home_Last5 + Avg_Points_Away_Last5) / 2.
+    Toujours retourne un predicted_total numérique (jamais vide).
     """
     from training_engine import build_feature_row_for_match, predict_total_points
 
@@ -221,11 +231,39 @@ def get_ml_prediction(
     prob_home = float(clf.predict_proba(X)[0, 1])
     spread = float(reg.predict(X)[0])
 
-    predicted_total = predict_total_points(home_id, away_id, game_date, league_id, season)
+    predicted_total = None
+    totals_reg = models.get("totals_regressor")
+    scaler_totals = models.get("scaler_totals")
+    totals_feature_names = models.get("totals_feature_names") or []
+    totals_train_means = models.get("totals_train_means") or {}
+    if totals_reg is not None and scaler_totals is not None and totals_feature_names and row is not None:
+        try:
+            X_t = pd.DataFrame([row])
+            for col in totals_feature_names:
+                if col not in X_t.columns:
+                    X_t[col] = totals_train_means.get(col, 0.0)
+            X_t = X_t[totals_feature_names].fillna(0).replace([np.inf, -np.inf], 0)
+            X_t_s = scaler_totals.transform(X_t)
+            predicted_total = float(totals_reg.predict(X_t_s)[0])
+        except Exception:
+            predicted_total = None
     if predicted_total is None or not (isinstance(predicted_total, (int, float)) and np.isfinite(predicted_total)):
-        predicted_total = DEFAULT_TOTAL_FALLBACK
-    proj_home = (float(predicted_total) + spread) / 2.0
-    proj_away = (float(predicted_total) - spread) / 2.0
+        try:
+            predicted_total = predict_total_points(home_id, away_id, game_date, league_id, season)
+        except Exception:
+            pass
+    if predicted_total is None or not (isinstance(predicted_total, (int, float)) and np.isfinite(predicted_total)):
+        # Fallback : (Avg_Points_Home_Last5 + Avg_Points_Away_Last5) / 2
+        if supabase:
+            avg_h = _avg_points_team_last_n(supabase, home_id, game_date, 5)
+            avg_a = _avg_points_team_last_n(supabase, away_id, game_date, 5)
+            if avg_h is not None and avg_a is not None:
+                predicted_total = (float(avg_h) + float(avg_a)) / 2.0
+        if predicted_total is None or not np.isfinite(predicted_total):
+            predicted_total = DEFAULT_TOTAL_FALLBACK
+    predicted_total = float(predicted_total)
+    proj_home = (predicted_total + spread) / 2.0
+    proj_away = (predicted_total - spread) / 2.0
 
     calibration = models.get("calibration", [])
     prob_calibrated = _apply_calibration(prob_home, calibration) if calibration else prob_home
@@ -236,34 +274,63 @@ def get_ml_prediction(
         "proj_home": proj_home,
         "proj_away": proj_away,
         "spread": spread,
-        "predicted_total": float(predicted_total),
+        "predicted_total": predicted_total,
     }
 
 
-def fetch_future_games(supabase, max_games: int = 200) -> List[dict]:
-    """Matchs à venir : games_history où home_score IS NULL, date >= aujourd'hui."""
-    if not supabase:
+def _avg_points_team_last_n(supabase, team_id: int, game_date: str, n: int = 5) -> Optional[float]:
+    """Moyenne des points marqués par l'équipe sur ses n derniers matchs (date < game_date)."""
+    if not supabase or not game_date or len(game_date) < 10:
+        return None
+    try:
+        r = (
+            supabase.table("games_history")
+            .select("game_id, home_id, away_id, home_score, away_score, date")
+            .or_(f"home_id.eq.{team_id},away_id.eq.{team_id}")
+            .lt("date", game_date[:10])
+            .not_.is_("home_score", "null")
+            .order("date", desc=True)
+            .limit(n * 2)
+            .execute()
+        )
+        rows = r.data or []
+        pts = []
+        for g in rows:
+            if g.get("home_id") == team_id and g.get("home_score") is not None:
+                pts.append(float(g["home_score"]))
+            elif g.get("away_id") == team_id and g.get("away_score") is not None:
+                pts.append(float(g["away_score"]))
+            if len(pts) >= n:
+                break
+        if not pts:
+            return None
+        return sum(pts) / len(pts)
+    except Exception:
+        return None
+
+
+def fetch_future_games(supabase, date_str: str, max_games: int = 200) -> List[dict]:
+    """Matchs à venir pour une date donnée : game_date == date_str, home_score IS NULL."""
+    if not supabase or not date_str or len(date_str) < 10:
         return []
-    today = date.today().isoformat()
     try:
         r = (
             supabase.table("games_history")
             .select("game_id, date, league_id, season, home_id, away_id, home_odd, away_odd")
+            .eq("date", date_str[:10])
             .is_("home_score", "null")
-            .gte("date", today)
             .order("date", desc=False)
             .limit(max_games)
             .execute()
         )
         return r.data or []
     except Exception:
-        # Colonnes home_odd/away_odd absentes si schema_migration_odds non exécuté
         try:
             r = (
                 supabase.table("games_history")
                 .select("game_id, date, league_id, season, home_id, away_id")
+                .eq("date", date_str[:10])
                 .is_("home_score", "null")
-                .gte("date", today)
                 .order("date", desc=False)
                 .limit(max_games)
                 .execute()
@@ -277,10 +344,103 @@ def fetch_future_games(supabase, max_games: int = 200) -> List[dict]:
             return []
 
 
+def fetch_future_games_j1_to_j3(supabase, max_games_per_day: int = 100) -> List[dict]:
+    """Matchs à venir : aujourd'hui + J+1 à J+3 (référence = Paris). Aligné sur ce que 01 insère (today, today+1, today+2) + J+3."""
+    today = _today_paris()
+    seen = set()
+    out = []
+    for delta in range(0, 4):  # 0 = aujourd'hui, 1 = J+1, 2 = J+2, 3 = J+3
+        d = (today + timedelta(days=delta)).isoformat()
+        games = fetch_future_games(supabase, d, max_games=max_games_per_day)
+        for g in games:
+            gid = g.get("game_id")
+            if gid and gid not in seen:
+                seen.add(gid)
+                out.append(g)
+    return out
+
+
+ODDS_CHANGE_THRESHOLD = 0.05  # 5% de changement relatif pour considérer "cotes significativement changées"
+
+
+def _odds_changed_significantly(
+    existing_home: Optional[float],
+    existing_away: Optional[float],
+    new_home: Optional[float],
+    new_away: Optional[float],
+) -> bool:
+    """True si les cotes ont changé de plus de ODDS_CHANGE_THRESHOLD (relatif)."""
+    if existing_home is None and existing_away is None:
+        return True  # pas de ligne existante → on insère
+    def _rel_change(old: float, new: float) -> float:
+        if old is None or new is None or old <= 0:
+            return 1.0
+        return abs(new - old) / old
+    h = _rel_change(existing_home, new_home) if (existing_home or new_home) else 0.0
+    a = _rel_change(existing_away, new_away) if (existing_away or new_away) else 0.0
+    return h > ODDS_CHANGE_THRESHOLD or a > ODDS_CHANGE_THRESHOLD
+
+
+def _get_existing_projection(
+    supabase, game_id: int, date_prediction: str
+) -> Optional[dict]:
+    """Récupère la projection existante pour (game_id, date_prediction) si elle existe."""
+    if not supabase or not date_prediction or len(date_prediction) < 10:
+        return None
+    try:
+        r = (
+            supabase.table("daily_projections_v2")
+            .select("game_id, date_prediction, bookmaker_odds_home, bookmaker_odds_away")
+            .eq("game_id", game_id)
+            .eq("date_prediction", date_prediction[:10])
+            .limit(1)
+            .execute()
+        )
+        data = r.data or []
+        return data[0] if data else None
+    except Exception:
+        return None
+
+
+def _build_reasoning_text(
+    home_name: str,
+    away_name: str,
+    edge_home: float,
+    edge_away: float,
+    confiance: str,
+    context_message: str,
+    style_match: str,
+    brain_used: str,
+    alerte_trappe: str,
+    pari_outsider: str,
+) -> str:
+    """Génère une phrase explicative du pari pour la colonne reasoning_text."""
+    parts = []
+    if alerte_trappe and "Trap" in alerte_trappe and context_message:
+        parts.append(context_message.strip()[:200])
+    if brain_used and "Chasseur" in brain_used and pari_outsider and pari_outsider != "—":
+        parts.append("Value détectée sur l'outsider (modèle Chasseur de Surprises).")
+    elif edge_home > 0 and edge_home >= edge_away:
+        parts.append(f"Avantage ML domicile : {home_name} avec edge +{edge_home:.1f}%.")
+    elif edge_away > 0:
+        parts.append(f"Avantage ML extérieur : {away_name} avec edge +{edge_away:.1f}%.")
+    if style_match and style_match != "—":
+        parts.append(f"Style : {style_match}.")
+    if context_message and "Trap" not in (context_message or ""):
+        msg = (context_message or "").strip()[:150]
+        if msg:
+            parts.append(msg)
+    if not parts:
+        parts.append("Projection ML standard.")
+    return " ".join(parts).strip() or "Projection ML."
+
+
 def run_predictions(max_games: int = 200) -> int:
     """
-    Récupère les matchs à venir, calcule les prédictions ML, écrit dans daily_projections.
-    Retourne le nombre de lignes upsertées.
+    Récupère les matchs J+1 à J+3, calcule les prédictions ML (modèles .pkl uniquement),
+    écrit dans daily_projections_v2. Si une ligne existe déjà pour (game_id, date_prediction=aujourd'hui),
+    on ne la modifie pas sauf si les cotes ont changé significativement.
+    Retourne le nombre de lignes insérées ou mises à jour.
     """
     supabase = get_client()
     if not supabase:
@@ -292,12 +452,14 @@ def run_predictions(max_games: int = 200) -> int:
         print("❌ Modèles absents. Lance 02_train_models.py d'abord.")
         return 0
 
-    games = fetch_future_games(supabase, max_games=max_games)
+    date_prediction_str = _today_paris().isoformat()
+    games = fetch_future_games_j1_to_j3(supabase, max_games_per_day=max_games)
     if not games:
-        print("   Aucun match à venir (games_history avec home_score NULL et date >= aujourd'hui).")
+        print(f"   Aucun match à venir (aujourd'hui + J+1 à J+3) dans games_history.")
+        print(f"   → Vérifier que 01_ingest_data a bien tourné et que l'API renvoie des matchs pour ces dates.")
         return 0
 
-    print(f"\n📊 {len(games)} match(s) à venir → prédictions ML...")
+    print(f"\n📊 {len(games)} match(s) (aujourd'hui + J+1 à J+3) → prédictions ML (figées dans daily_projections_v2)...")
 
     try:
         from training_engine import get_trap_info, get_match_style
@@ -310,8 +472,8 @@ def run_predictions(max_games: int = 200) -> int:
     except Exception:
         predict_upset_proba = None
 
-    now = datetime.utcnow().isoformat()
     upserted = 0
+    skipped_existing = 0
 
     for g in games:
         gid = g.get("game_id")
@@ -326,13 +488,27 @@ def run_predictions(max_games: int = 200) -> int:
         if not gid or not home_id or not away_id or len(game_date) != 10:
             continue
 
+        # Ne pas projeter un match déjà passé (date du match < date du run)
+        if game_date < date_prediction_str:
+            continue
+
+        # Ne pas écraser une projection du jour sauf si cotes significativement changées
+        existing = _get_existing_projection(supabase, gid, date_prediction_str)
+        if existing and not _odds_changed_significantly(
+            existing.get("bookmaker_odds_home"),
+            existing.get("bookmaker_odds_away"),
+            odd_home,
+            odd_away,
+        ):
+            skipped_existing += 1
+            continue
+
         home_name = _get_team_name(supabase, home_id)
         away_name = _get_team_name(supabase, away_id)
         match_name = f"{home_name} vs {away_name}"
-        jour = _day_label(game_date)
         fiabilite = _fiabilite_from_box_scores(supabase, home_id, away_id)
 
-        ml_pred = get_ml_prediction(models, home_id, away_id, game_date, league_id, season)
+        ml_pred = get_ml_prediction(models, home_id, away_id, game_date, league_id, season, supabase=supabase)
         if ml_pred is None:
             continue
 
@@ -341,6 +517,9 @@ def run_predictions(max_games: int = 200) -> int:
         proj_home = ml_pred["proj_home"]
         proj_away = ml_pred["proj_away"]
         predicted_total = ml_pred.get("predicted_total")
+        if predicted_total is None or (isinstance(predicted_total, float) and not np.isfinite(predicted_total)):
+            predicted_total = DEFAULT_TOTAL_FALLBACK
+        predicted_total = float(predicted_total)
 
         # Brain : Standard ou Chasseur (upset)
         prob_for_ev = prob_calibrated
@@ -360,18 +539,11 @@ def run_predictions(max_games: int = 200) -> int:
 
         edge_home = (prob_for_ev * (odd_home or 0) - 1.0) * 100.0 if odd_home else 0.0
         edge_away = ((1.0 - prob_for_ev) * (odd_away or 0) - 1.0) * 100.0 if odd_away else 0.0
-        edge = max(edge_home, edge_away)
+        edge_ml = max(edge_home, edge_away)
         if (prob_for_ev * (odd_home or 0) - 1.0) > SNIPER_TARGET_EV_THRESHOLD:
-            confiance = "🎯 SNIPER TARGET"
+            confiance_label = "🎯 SNIPER TARGET"
         else:
-            confiance = _mise_bucket(edge, fiabilite)
-
-        if edge_home > edge_away and edge_home > 0:
-            le_pari = f"{home_name} (@ {odd_home:.1f})" if odd_home else home_name
-        elif edge_away > 0:
-            le_pari = f"{away_name} (@ {odd_away:.1f})" if odd_away else away_name
-        else:
-            le_pari = "—"
+            confiance_label = _mise_bucket(edge_ml, fiabilite)
 
         pari_outsider = "—"
         alerte_trappe = "—"
@@ -391,58 +563,64 @@ def run_predictions(max_games: int = 200) -> int:
             except Exception:
                 pass
 
+        if edge_ml > 0 and brain_used == "🔥 Chasseur de Surprises":
+            pari_outsider = f"{away_name}" if edge_away >= edge_home else f"{home_name}"
+
+        reasoning_text = _build_reasoning_text(
+            home_name, away_name, edge_home, edge_away, confiance_label,
+            context_message, style_match, brain_used, alerte_trappe, pari_outsider,
+        )
+
+        # Ligne bookmaker total (non fournie par games_history ici) → null, edge_total null
+        bookmaker_line_total = None
+        edge_total = None
+
         payload = {
             "game_id": gid,
+            "date_prediction": date_prediction_str,
             "match_name": match_name,
-            "date": game_date,
-            "time": None,
-            "jour": jour,
-            "league_id": league_id,
-            "season": season,
-            "home_id": home_id,
-            "away_id": away_id,
-            "proba_ml": prob_home,
-            "proba_calibree": prob_calibrated,
-            "edge_percent": float(edge),
-            "brain_used": brain_used,
-            "confiance_label": confiance,
-            "le_pari": le_pari,
-            "pari_outsider": pari_outsider,
-            "alerte_trappe": alerte_trappe,
-            "message_contexte": context_message,
-            "fiabilite": fiabilite,
-            "predicted_total": predicted_total,
-            "line_bookmaker": None,
-            "diff_total": None,
-            "pari_total": "En attente",
-            "confiance_ou": "—",
-            "style_match": style_match,
-            "odds_home": odd_home,
-            "odds_away": odd_away,
-            "updated_at": now,
+            "league": str(league_id) if league_id is not None else None,
+            "start_time": g.get("date"),  # ISO string si dispo
+            "proba_ml": float(prob_home),
+            "proba_ml_calibrated": float(prob_calibrated),
+            "projected_score_home": float(proj_home),
+            "projected_score_away": float(proj_away),
+            "total_points_projected": float(predicted_total),
+            "bookmaker_odds_home": float(odd_home) if odd_home is not None else None,
+            "bookmaker_odds_away": float(odd_away) if odd_away is not None else None,
+            "bookmaker_line_total": bookmaker_line_total,
+            "edge_ml": float(edge_ml),
+            "edge_total": edge_total,
+            "confidence_score": float(fiabilite),
+            "reasoning_text": reasoning_text,
         }
 
         try:
-            supabase.table("daily_projections").upsert(payload, on_conflict="game_id").execute()
+            supabase.table("daily_projections_v2").upsert(
+                payload,
+                on_conflict="game_id,date_prediction",
+            ).execute()
             upserted += 1
         except Exception as e:
             print(f"   ⚠️ game_id {gid}: {e}")
 
+    if skipped_existing:
+        print(f"   ({skipped_existing} projection(s) déjà présentes, cotes inchangées — non modifiées)")
     return upserted
 
 
 def main() -> None:
     import argparse
-    parser = argparse.ArgumentParser(description="Prédictions ML → daily_projections (Sniper ETL)")
-    parser.add_argument("--max-games", type=int, default=200, help="Nombre max de matchs à traiter")
+    parser = argparse.ArgumentParser(description="Prédictions ML → daily_projections_v2 (Write Once)")
+    parser.add_argument("--max-games", type=int, default=200, help="Nombre max de matchs par jour (J+1 à J+3)")
     args = parser.parse_args()
 
     print("\n" + "=" * 50)
-    print("🧠 03_predict_daily — Le Cerveau")
+    print("🧠 03_predict_daily — Le Cerveau (Write Once, Read Many)")
     print("=" * 50)
 
     n = run_predictions(max_games=args.max_games)
-    print(f"\n✅ {n} projection(s) enregistrées dans daily_projections.\n")
+    print(f"\n✅ {n} projection(s) enregistrées dans daily_projections_v2.\n")
 
 
 if __name__ == "__main__":
