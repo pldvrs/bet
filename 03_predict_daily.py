@@ -571,6 +571,14 @@ def run_predictions(max_games: int = 200) -> int:
             context_message, style_match, brain_used, alerte_trappe, pari_outsider,
         )
 
+        # Prono ML (aligné Deep Dive) : Victoire [Équipe] (@ cote) ou PASSER
+        if edge_ml < 0:
+            le_pari = "PASSER"
+        elif edge_home >= edge_away and edge_home > 0:
+            le_pari = f"Victoire {home_name}" + (f" (@ {odd_home:.2f})" if odd_home else "")
+        else:
+            le_pari = f"Victoire {away_name}" + (f" (@ {odd_away:.2f})" if odd_away else "")
+
         # Ligne bookmaker total (non fournie par games_history ici) → null, edge_total null
         bookmaker_line_total = None
         edge_total = None
@@ -593,6 +601,8 @@ def run_predictions(max_games: int = 200) -> int:
             "edge_total": edge_total,
             "confidence_score": float(fiabilite),
             "reasoning_text": reasoning_text,
+            "le_pari": le_pari,
+            "style_match": style_match or None,
         }
 
         try:

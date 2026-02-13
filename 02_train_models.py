@@ -4,6 +4,8 @@
 =====================================================================
 Récupère tout le Feature Engineering de training_engine.py, entraîne les 3 modèles
 (Proba, Spread, Totals) et sauvegarde model_proba.pkl, model_spread.pkl, model_totals.pkl.
+Charge dynamiquement toutes les ligues présentes en base (games_history + box_scores) :
+aucun filtre par league_id — EuroCup, BCL, EuroLeague, etc. sont inclus automatiquement.
 
 Correction CRITIQUE Totals :
   - Aucune constante 150 ni total_est.
@@ -264,6 +266,8 @@ def run_training(test_months: int = TEST_MONTHS_DEFAULT) -> None:
         print("❌ Dates invalides")
         return
 
+    print(f"\n📂 Chargement : tout l'historique games_history (matchs terminés) → {len(df)} matchs.")
+
     test_start = max_date - timedelta(days=test_months * 31)
     train_df = df[df["date"] < test_start].copy()
     test_df = df[df["date"] >= test_start].copy()
@@ -301,7 +305,9 @@ def run_training(test_months: int = TEST_MONTHS_DEFAULT) -> None:
     save_models(proba_spread_result, totals_result)
     print(f"   → {MODEL_PROBA_PATH.name}, {MODEL_SPREAD_PATH.name}, {MODEL_TOTALS_PATH.name}")
     print(f"   → {SCALER_PATH.name}, {SCALER_TOTALS_PATH.name}, features_meta*.json")
-    print("\n✅ 02_train_models terminé.\n")
+
+    last_match_date = max_date.date() if hasattr(max_date, "date") else str(max_date)[:10]
+    print(f"\n✅ Entraînement terminé sur {len(df)} matchs. Dernier match inclus : {last_match_date}.\n")
 
 
 def main() -> None:

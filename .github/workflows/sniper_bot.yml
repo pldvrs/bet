@@ -39,23 +39,15 @@ jobs:
           API_BASKETBALL_KEY: ${{ secrets.API_BASKETBALL_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python run_pipeline.py
+        run: python run_pipeline.py --days-past 5 --max-games-past 200
 
-      - name: "Backtest Time Machine (05_true_backtest.py)"
-        id: backtest
+      - name: "Backtest persistant (05_run_backtest.py)"
         if: success()
         continue-on-error: true
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python 05_true_backtest.py --days 10
-
-      - name: "Upload backtest_results.json"
-        if: steps.backtest.outcome == 'success'
-        uses: actions/upload-artifact@v4
-        with:
-          name: backtest-results
-          path: backtest_results.json
+        run: python 05_run_backtest.py --days 1
 
       - name: "Envoi alertes SNIPER TARGET (optionnel)"
         if: success()

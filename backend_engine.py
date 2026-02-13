@@ -14,7 +14,7 @@ import time
 import requests
 import numpy as np
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 # --- CHARGEMENT CONFIGURATION BLINDÉ (AVANT TOUT) ---
 from dotenv import load_dotenv
@@ -54,6 +54,8 @@ LEAGUES = {
     "Betclic Élite (FR)": 2,
     "Pro B (FR)": 8,
     "EuroLeague": 120,
+    "EuroCup": 121,
+    "Champions League (BCL)": 16,
     "LBA Italie": 4,
     "Lega A (Italie)": 52,
     "Liga ACB (ESP)": 5,
@@ -196,6 +198,20 @@ def game_already_in_base(game_id: int) -> bool:
     try:
         r = supabase.table("box_scores").select("game_id").eq("game_id", game_id).limit(1).execute()
         return bool(r.data and len(r.data) > 0)
+    except Exception:
+        return False
+
+
+def update_game_scores_only(game_id: int, home_score: int, away_score: int) -> bool:
+    """Met à jour uniquement les scores dans games_history (match déjà en base). Pas d'appel API box_scores."""
+    if not supabase:
+        return False
+    try:
+        supabase.table("games_history").update({
+            "home_score": home_score,
+            "away_score": away_score,
+        }).eq("game_id", game_id).execute()
+        return True
     except Exception:
         return False
 
@@ -566,8 +582,12 @@ def ingest_recent_games(days: int = 3, max_games_per_run: int = 30) -> int:
                         seen_gids.add(gid)
 
                         if game_already_in_base(gid):
-                            print(f"   ⏭️  Match {gid} déjà en base, on passe.")
-                            skipped += 1
+                            # Upsert : mettre à jour les scores dans games_history sans rappeler l'API box_scores
+                            if update_game_scores_only(gid, pts_h, pts_a):
+                                print(f"   📝 Match {gid} déjà en base → scores mis à jour ({pts_h}-{pts_a})")
+                                ingested += 1
+                            else:
+                                skipped += 1
                             continue
 
                         print(f"   📥 Match {gid} → ingestion...")
@@ -676,6 +696,121 @@ def ingest_from_season_start(season: str = "2025-2026", max_games: int = 500) ->
                     continue
     print(f"\n📊 Bilan : {ingested} ingérés | {skipped} passés (déjà en base)")
     return ingested
+
+
+def _season_date_range(season: str) -> tuple[date, date] | None:
+    """Retourne (début, fin) de la saison au format date. Ex: 2023-2024 → (2023-09-01, 2024-06-30)."""
+    if not season or "-" not in str(season).strip():
+        return None
+    parts = str(season).strip().split("-")
+    try:
+        y1, y2 = int(parts[0]), int(parts[1])
+        start = date(y1, 9, 1)
+        end = date(y2, 6, 30)
+        return start, end
+    except (ValueError, IndexError):
+        return None
+
+
+def backfill_league_seasons(
+    league_ids: list[int],
+    seasons: list[str] | None = None,
+    max_games_per_league: int = 0,
+) -> int:
+    """
+    Initialisation Ligue : récupère TOUS les matchs terminés (FT) pour les ligues données
+    sur les saisons indiquées, avec box_scores. UPSERT games_history + box_scores sans doublons.
+    Utilisé pour le backfill EuroCup / BCL (2023-2024, 2024-2025).
+    """
+    if not supabase:
+        return 0
+    seasons = seasons or ["2023-2024", "2024-2025"]
+    league_name_by_id = {v: k for k, v in LEAGUES.items()}
+    total_ingested = 0
+    today = date.today()
+
+    for league_id in league_ids:
+        league_name = league_name_by_id.get(league_id, f"League {league_id}")
+        ingested_league = 0
+        skipped_league = 0
+        seen_gids = set()
+
+        print(f"\n🏀 BACKFILL — {league_name} (ID {league_id})")
+        for season in seasons:
+            dr = _season_date_range(season)
+            if not dr:
+                print(f"   ⚠️ Saison ignorée (format invalide) : {season}")
+                continue
+            start_date, end_date = dr
+            end_date = min(end_date, today)
+            if start_date > end_date:
+                print(f"   ⚠️ Saison {season} : pas encore commencée ou terminée hors plage.")
+                continue
+
+            delta_days = (end_date - start_date).days + 1
+            print(f"   📅 Saison {season} : du {start_date} au {end_date} ({delta_days} jours)")
+
+            for day_offset in range(delta_days):
+                if max_games_per_league > 0 and ingested_league >= max_games_per_league:
+                    break
+                d = start_date + timedelta(days=day_offset)
+                date_str = d.strftime("%Y-%m-%d")
+                try:
+                    r = requests.get(
+                        f"{BASE_URL}/games",
+                        headers=HEADERS,
+                        params={"date": date_str, "league": league_id, "season": season},
+                        timeout=15,
+                    )
+                    time.sleep(STATS_RATE_LIMIT_SLEEP)
+                    data = r.json()
+
+                    if data.get("errors"):
+                        errs = data["errors"]
+                        if "rate" in str(errs).lower() or "limit" in str(errs).lower():
+                            print(f"   🛑 Rate Limit API atteint.")
+                            print(f"\n📊 Bilan partiel {league_name} : {ingested_league} ingérés | {skipped_league} passés")
+                            total_ingested += ingested_league
+                            return total_ingested
+                        continue
+
+                    games = data.get("response", [])
+                    if not games:
+                        continue
+
+                    for g in games:
+                        if max_games_per_league > 0 and ingested_league >= max_games_per_league:
+                            break
+                        gid = g.get("id")
+                        if not gid or gid in seen_gids:
+                            continue
+                        status = g.get("status") or {}
+                        status_short = status.get("short", "") if isinstance(status, dict) else str(status)
+                        if status_short not in ("FT", "AOT", "AOT1", "AOT2"):
+                            continue
+                        scores = g.get("scores") or {}
+                        sh, sa = scores.get("home"), scores.get("away")
+                        pts_h = _safe_int(sh.get("total") if isinstance(sh, dict) else sh)
+                        pts_a = _safe_int(sa.get("total") if isinstance(sa, dict) else sa)
+                        if pts_h == 0 and pts_a == 0:
+                            continue
+                        seen_gids.add(gid)
+
+                        if game_already_in_base(gid):
+                            skipped_league += 1
+                            continue
+                        print(f"   📥 Match {gid} ({date_str}) → ingestion + box scores...")
+                        if ingest_game(g, league_id, season):
+                            ingested_league += 1
+                except Exception as e:
+                    print(f"   ❌ Erreur {date_str} : {e}")
+                    continue
+
+        total_ingested += ingested_league
+        print(f"\n   📊 {league_name} : {ingested_league} ingérés | {skipped_league} déjà en base")
+
+    print(f"\n✅ Backfill terminé : {total_ingested} matchs au total (games_history + box_scores).")
+    return total_ingested
 
 
 def ingest_month(year: int, month: int, max_games: int = 500) -> int:

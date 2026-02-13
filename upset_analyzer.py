@@ -30,6 +30,8 @@ LEAGUES: Dict[str, int] = {
     "Betclic Élite (FR)": 2,
     "Pro B (FR)": 8,
     "EuroLeague": 120,
+    "EuroCup": 121,
+    "Champions League (BCL)": 16,
     "Liga ACB (ESP)": 5,
 }
 

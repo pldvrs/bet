@@ -70,6 +70,8 @@ LEAGUES: Dict[str, int] = {
     "Betclic Élite (FR)": 2,
     "Pro B (FR)": 8,
     "EuroLeague": 120,
+    "EuroCup": 121,
+    "Champions League (BCL)": 16,
     "LBA Italie": 4,
     "Lega A (Italie)": 52,
     "Liga ACB (ESP)": 5,
@@ -83,6 +85,8 @@ LEAGUE_CONFIGS: Dict[int, Dict[str, float]] = {
     2: {"baseline_pace": 72.0, "home_advantage": 3.5, "defensive_factor": 1.05},
     8: {"baseline_pace": 72.0, "home_advantage": 3.5, "defensive_factor": 1.02},
     120: {"baseline_pace": 72.0, "home_advantage": 4.0, "defensive_factor": 1.08},
+    121: {"baseline_pace": 73.5, "home_advantage": 3.5, "defensive_factor": 1.02},   # EuroCup
+    16: {"baseline_pace": 72.5, "home_advantage": 4.0, "defensive_factor": 1.04},    # BCL
     4: {"baseline_pace": 70.0, "home_advantage": 3.5, "defensive_factor": 1.05},
     52: {"baseline_pace": 72.0, "home_advantage": 3.5, "defensive_factor": 1.04},
     5: {"baseline_pace": 72.0, "home_advantage": 3.5, "defensive_factor": 1.03},

@@ -3,6 +3,7 @@ python-dotenv
 requests
 numpy
 pandas
+pytz
 streamlit
 plotly
 scipy

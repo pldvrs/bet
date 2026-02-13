@@ -710,9 +710,10 @@ def _build_row(
     }
 
 
-def build_training_dataset() -> Tuple[pd.DataFrame, Optional[str]]:
+def build_training_dataset(max_date: Optional[str] = None) -> Tuple[pd.DataFrame, Optional[str]]:
     """
     Parcourt tous les matchs terminés, génère les features (N-10 + contexte).
+    Si max_date est fourni (YYYY-MM-DD), seuls les matchs avec date < max_date sont inclus (backtest sans lookahead).
     Retourne (DataFrame avec X + Win_Home + Score_Diff, error_message).
     """
     df_games = _fetch_games_with_scores()
@@ -723,6 +724,10 @@ def build_training_dataset() -> Tuple[pd.DataFrame, Optional[str]]:
         return pd.DataFrame(), "Aucun match terminé en base"
     if df_box.empty:
         return pd.DataFrame(), "Aucun box_score en base"
+
+    if max_date:
+        max_d = str(max_date)[:10]
+        df_games = df_games[pd.to_datetime(df_games["date"], errors="coerce") < pd.Timestamp(max_d)].copy()
 
     if "date" not in df_box.columns:
         supabase = _get_supabase()
@@ -743,6 +748,8 @@ def build_training_dataset() -> Tuple[pd.DataFrame, Optional[str]]:
     for _, g in df_games.iterrows():
         game_date = str(g.get("date") or "")[:10]
         if len(game_date) != 10:
+            continue
+        if max_date and game_date >= str(max_date)[:10]:
             continue
         home_id = int(g.get("home_id", 0))
         away_id = int(g.get("away_id", 0))

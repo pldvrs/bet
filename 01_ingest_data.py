@@ -12,8 +12,10 @@ Sources réutilisées :
 
 Usage:
   python 01_ingest_data.py              # mode daily (veille + J+3 + cotes)
+  python 01_ingest_data.py --days 5     # Deep Fetch : 5 derniers jours (résultats FT + upsert scores)
   python 01_ingest_data.py --no-odds    # sans récupération des cotes
   python 01_ingest_data.py --days-past 2 --days-future 5
+  python 01_ingest_data.py --init-leagues 121,16   # Backfill EuroCup + BCL (2023-2024, 2024-2025)
 """
 
 import argparse
@@ -241,6 +243,13 @@ def main() -> None:
         description="Ingestion données basketball + cotes → Supabase (Sniper ETL)"
     )
     parser.add_argument(
+        "--days",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Raccourci : nombre de jours passés pour les scores (ex: --days 5 = 5 derniers jours). Prioritaire sur --days-past.",
+    )
+    parser.add_argument(
         "--days-past",
         type=int,
         default=1,
@@ -274,12 +283,51 @@ def main() -> None:
         action="store_true",
         help="Ne pas mettre à jour les archétypes équipes",
     )
+    parser.add_argument(
+        "--init-leagues",
+        type=str,
+        default=None,
+        metavar="ID1,ID2",
+        help="Initialisation Ligue : backfill massif (saisons 2023-2024, 2024-2025, FT + box_scores) pour les IDs donnés. Ex: --init-leagues 121,16 (EuroCup + BCL). N'exécute pas le pipeline daily.",
+    )
     args = parser.parse_args()
 
+    # Mode backfill (Initialisation Ligue) : uniquement les ligues indiquées, 2 dernières saisons
+    if args.init_leagues is not None:
+        try:
+            league_ids = [int(x.strip()) for x in args.init_leagues.split(",") if x.strip()]
+        except ValueError:
+            print("❌ --init-leagues : liste d'IDs entiers séparés par des virgules (ex: 121,16)")
+            sys.exit(1)
+        if not league_ids:
+            print("❌ --init-leagues : au moins un league_id requis (ex: 121,16)")
+            sys.exit(1)
+        supabase = get_client()
+        if not supabase:
+            print("❌ Connexion Supabase impossible.")
+            sys.exit(1)
+        try:
+            from backend_engine import backfill_league_seasons
+        except ImportError as e:
+            print(f"❌ Import backend_engine: {e}")
+            sys.exit(1)
+        print("\n" + "=" * 50)
+        print("📥 01_ingest_data — Initialisation Ligue (Backfill)")
+        print("=" * 50)
+        print(f"   Ligues : {league_ids} | Saisons : 2023-2024, 2024-2025")
+        print("   Récupération : tous les matchs FT + box_scores → games_history, box_scores (UPSERT)\n")
+        backfill_league_seasons(league_ids=league_ids, seasons=["2023-2024", "2024-2025"])
+        print("\n✅ Backfill terminé. Lance 02_train_models.py pour ré-entraîner le modèle.\n")
+        return
+
+    days_past = args.days if args.days is not None else args.days_past
+    # En mode Deep Fetch (plus d'un jour), augmenter la cap pour ne rien rater
+    max_games_past = max(args.max_games_past, days_past * 30) if days_past > 1 else args.max_games_past
+
     run_ingest(
-        days_past=args.days_past,
+        days_past=days_past,
         days_future=args.days_future,
-        max_games_past=args.max_games_past,
+        max_games_past=max_games_past,
         max_games_future=args.max_games_future,
         fetch_odds=not args.no_odds,
         skip_archetypes=args.skip_archetypes,

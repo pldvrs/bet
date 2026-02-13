@@ -35,6 +35,8 @@ LEAGUES: Dict[str, int] = {
     "Betclic Élite (FR)": 2,
     "Pro B (FR)": 8,
     "EuroLeague": 120,
+    "EuroCup": 121,
+    "Champions League (BCL)": 16,
     "LBA Italie": 4,
     "Lega A (Italie)": 52,
     "Liga ACB (ESP)": 5,
@@ -49,7 +51,7 @@ LEAGUE_COUNTRY: Dict[int, str] = {
     2: "France", 8: "France",
     5: "Spain", 4: "Italy", 52: "Italy",
     194: "Turkey", 198: "Greece", 45: "Greece",
-    120: "Europe", 206: "Europe",
+    120: "Europe", 121: "Europe", 16: "Europe", 206: "Europe",
 }
 
 # V25 Sniper — League Profiler : spécialisation par ligue (NBA 98 poss, Euro ~70)
@@ -60,6 +62,8 @@ LEAGUE_CONFIGS: Dict[int, Dict[str, float]] = {
     2: {"baseline_pace": 72.0, "home_advantage": 3.5, "defensive_factor": 1.05},   # Betclic Élite FR
     8: {"baseline_pace": 72.0, "home_advantage": 3.5, "defensive_factor": 1.02},   # Pro B FR
     120: {"baseline_pace": 72.0, "home_advantage": 4.0, "defensive_factor": 1.08}, # EuroLeague
+    121: {"baseline_pace": 73.5, "home_advantage": 3.5, "defensive_factor": 1.02}, # EuroCup
+    16: {"baseline_pace": 72.5, "home_advantage": 4.0, "defensive_factor": 1.04},  # BCL
     4: {"baseline_pace": 70.0, "home_advantage": 3.5, "defensive_factor": 1.05},   # LBA Italie
     52: {"baseline_pace": 72.0, "home_advantage": 3.5, "defensive_factor": 1.04},  # Lega A Italie
     5: {"baseline_pace": 72.0, "home_advantage": 3.5, "defensive_factor": 1.03},   # Liga ACB

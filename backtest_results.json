@@ -1,0 +1,488 @@
+{
+  "updated_at": "2026-02-08T20:46:32.219302+01:00",
+  "days": 60,
+  "total_profit": -12.93,
+  "n_bets": 60,
+  "rows": [
+    {
+      "date": "2026-02-06",
+      "match": "Quimper vs Pau-Orthez",
+      "pari": "Vic Extérieur",
+      "cote": "1.17",
+      "resultat": "Vic Extérieur",
+      "profit": 0.17
+    },
+    {
+      "date": "2026-02-06",
+      "match": "Chalons-Reims vs ASA",
+      "pari": "Vic Domicile",
+      "cote": "1.40",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-06",
+      "match": "La Rochelle vs Poitiers",
+      "pari": "Vic Extérieur",
+      "cote": "2.30",
+      "resultat": "Vic Extérieur",
+      "profit": 1.3
+    },
+    {
+      "date": "2026-02-06",
+      "match": "Antibes vs Aix Maurienne",
+      "pari": "Vic Extérieur",
+      "cote": "2.55",
+      "resultat": "Vic Extérieur",
+      "profit": 1.55
+    },
+    {
+      "date": "2026-02-06",
+      "match": "Anadolu Efes vs Zalgiris Kaunas",
+      "pari": "Vic Extérieur",
+      "cote": "1.80",
+      "resultat": "Vic Domicile",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-06",
+      "match": "Crvena zvezda vs Maccabi Tel Aviv",
+      "pari": "Vic Domicile",
+      "cote": "1.35",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-06",
+      "match": "Lyon-Villeurbanne vs Olimpia Milano",
+      "pari": "Vic Domicile",
+      "cote": "2.30",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-06",
+      "match": "Olympiacos vs Virtus Bologna",
+      "pari": "Vic Extérieur",
+      "cote": "6.50",
+      "resultat": "Vic Domicile",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-06",
+      "match": "Vienna Basket vs Zadar",
+      "pari": "Vic Domicile",
+      "cote": "1.80",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-06",
+      "match": "Denain-Voltaire vs Challans",
+      "pari": "Vic Domicile",
+      "cote": "1.10",
+      "resultat": "Vic Domicile",
+      "profit": 0.1
+    },
+    {
+      "date": "2026-02-06",
+      "match": "St. Chamond vs Evreux",
+      "pari": "Vic Domicile",
+      "cote": "1.20",
+      "resultat": "Vic Domicile",
+      "profit": 0.2
+    },
+    {
+      "date": "2026-02-06",
+      "match": "Baskonia vs Barcelona",
+      "pari": "Vic Domicile",
+      "cote": "2.20",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-06",
+      "match": "JL Bourg vs Boulazac",
+      "pari": "Vic Domicile",
+      "cote": "1.22",
+      "resultat": "Vic Domicile",
+      "profit": 0.22
+    },
+    {
+      "date": "2026-02-06",
+      "match": "Vichy vs Caen",
+      "pari": "Vic Domicile",
+      "cote": "1.20",
+      "resultat": "Vic Domicile",
+      "profit": 0.2
+    },
+    {
+      "date": "2026-02-05",
+      "match": "Dubai vs Real Madrid",
+      "pari": "Vic Domicile",
+      "cote": "2.15",
+      "resultat": "Vic Domicile",
+      "profit": 1.15
+    },
+    {
+      "date": "2026-02-05",
+      "match": "Hapoel Tel-Aviv vs Valencia",
+      "pari": "Vic Domicile",
+      "cote": "1.50",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-05",
+      "match": "Bayern vs Monaco",
+      "pari": "Vic Domicile",
+      "cote": "2.35",
+      "resultat": "Vic Domicile",
+      "profit": 1.35
+    },
+    {
+      "date": "2026-02-05",
+      "match": "Partizan Mozzart Bet vs Panathinaikos",
+      "pari": "Vic Domicile",
+      "cote": "3.00",
+      "resultat": "Vic Domicile",
+      "profit": 2.0
+    },
+    {
+      "date": "2026-02-05",
+      "match": "Paris vs Fenerbahce",
+      "pari": "Vic Domicile",
+      "cote": "2.75",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-04",
+      "match": "Virtus Bologna vs Lyon-Villeurbanne",
+      "pari": "Vic Domicile",
+      "cote": "1.20",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-04",
+      "match": "Besiktas vs Turk Telekom",
+      "pari": "Vic Domicile",
+      "cote": "1.25",
+      "resultat": "Vic Domicile",
+      "profit": 0.25
+    },
+    {
+      "date": "2026-02-04",
+      "match": "Hapoel Jerusalem vs Cluj-Napoca",
+      "pari": "Vic Domicile",
+      "cote": "1.20",
+      "resultat": "Vic Domicile",
+      "profit": 0.2
+    },
+    {
+      "date": "2026-02-04",
+      "match": "Chemnitz vs Trento",
+      "pari": "Vic Extérieur",
+      "cote": "2.10",
+      "resultat": "Vic Domicile",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-04",
+      "match": "JL Bourg vs London Lions",
+      "pari": "Vic Domicile",
+      "cote": "1.08",
+      "resultat": "Vic Domicile",
+      "profit": 0.08
+    },
+    {
+      "date": "2026-02-04",
+      "match": "Aris vs Neptunas",
+      "pari": "Vic Extérieur",
+      "cote": "3.45",
+      "resultat": "Vic Domicile",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-04",
+      "match": "Manresa vs Venezia",
+      "pari": "Vic Domicile",
+      "cote": "1.55",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-04",
+      "match": "Union Florida W vs Obras Sanitarias W",
+      "pari": "Vic Domicile",
+      "cote": "2.70",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-04",
+      "match": "Lietkabelis vs Panionios",
+      "pari": "Vic Extérieur",
+      "cote": "2.55",
+      "resultat": "Vic Domicile",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-03",
+      "match": "Anadolu Efes vs Valencia",
+      "pari": "Vic Extérieur",
+      "cote": "1.50",
+      "resultat": "Vic Domicile",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-03",
+      "match": "Zalgiris Kaunas vs Monaco",
+      "pari": "Vic Domicile",
+      "cote": "1.83",
+      "resultat": "Vic Domicile",
+      "profit": 0.83
+    },
+    {
+      "date": "2026-02-03",
+      "match": "Crvena zvezda vs Hapoel Tel-Aviv",
+      "pari": "Vic Extérieur",
+      "cote": "2.50",
+      "resultat": "Vic Domicile",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-03",
+      "match": "Maccabi Tel Aviv vs Partizan Mozzart Bet",
+      "pari": "Vic Extérieur",
+      "cote": "3.70",
+      "resultat": "Vic Domicile",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-03",
+      "match": "Barcelona vs Fenerbahce",
+      "pari": "Vic Domicile",
+      "cote": "1.65",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-03",
+      "match": "Olimpia Milano vs Baskonia",
+      "pari": "Vic Extérieur",
+      "cote": "3.10",
+      "resultat": "Vic Domicile",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-02-03",
+      "match": "Ulm vs Buducnost",
+      "pari": "Vic Extérieur",
+      "cote": "1.95",
+      "resultat": "Vic Extérieur",
+      "profit": 0.95
+    },
+    {
+      "date": "2026-02-03",
+      "match": "Panathinaikos vs Real Madrid",
+      "pari": "Vic Domicile",
+      "cote": "1.85",
+      "resultat": "Vic Domicile",
+      "profit": 0.85
+    },
+    {
+      "date": "2026-02-03",
+      "match": "Dubai vs Olympiacos",
+      "pari": "Vic Domicile",
+      "cote": "2.75",
+      "resultat": "Vic Domicile",
+      "profit": 1.75
+    },
+    {
+      "date": "2026-02-03",
+      "match": "Rouen vs Roanne",
+      "pari": "Vic Extérieur",
+      "cote": "1.40",
+      "resultat": "Vic Extérieur",
+      "profit": 0.4
+    },
+    {
+      "date": "2026-01-31",
+      "match": "Cholet vs JL Bourg",
+      "pari": "Vic Extérieur",
+      "cote": "1.95",
+      "resultat": "Vic Domicile",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-01-31",
+      "match": "Nanterre vs Chalon/Saone",
+      "pari": "Vic Domicile",
+      "cote": "1.30",
+      "resultat": "Vic Domicile",
+      "profit": 0.3
+    },
+    {
+      "date": "2026-01-31",
+      "match": "Strasbourg vs Le Mans",
+      "pari": "Vic Domicile",
+      "cote": "1.77",
+      "resultat": "Vic Domicile",
+      "profit": 0.77
+    },
+    {
+      "date": "2026-01-31",
+      "match": "Tortona vs Udine",
+      "pari": "Vic Domicile",
+      "cote": "1.36",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-01-31",
+      "match": "Cantu vs Venezia",
+      "pari": "Vic Extérieur",
+      "cote": "1.65",
+      "resultat": "Vic Extérieur",
+      "profit": 0.65
+    },
+    {
+      "date": "2026-01-31",
+      "match": "Iraklis vs AS Karditsas",
+      "pari": "Vic Extérieur",
+      "cote": "3.10",
+      "resultat": "Vic Domicile",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-01-31",
+      "match": "Nancy vs Gravelines-Dunkerque",
+      "pari": "Vic Domicile",
+      "cote": "1.35",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-01-31",
+      "match": "Spartak Subotica vs Buducnost",
+      "pari": "Vic Extérieur",
+      "cote": "1.48",
+      "resultat": "Vic Extérieur",
+      "profit": 0.48
+    },
+    {
+      "date": "2026-01-31",
+      "match": "AEK Athens vs Kolossos Rhodes",
+      "pari": "Vic Domicile",
+      "cote": "1.18",
+      "resultat": "Vic Domicile",
+      "profit": 0.18
+    },
+    {
+      "date": "2026-01-30",
+      "match": "Roanne vs La Rochelle",
+      "pari": "Vic Domicile",
+      "cote": "1.22",
+      "resultat": "Vic Domicile",
+      "profit": 0.22
+    },
+    {
+      "date": "2026-01-30",
+      "match": "Evreux vs Orleans",
+      "pari": "Vic Extérieur",
+      "cote": "1.45",
+      "resultat": "Vic Extérieur",
+      "profit": 0.45
+    },
+    {
+      "date": "2026-01-30",
+      "match": "Chalons-Reims vs Rouen",
+      "pari": "Vic Domicile",
+      "cote": "1.33",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-01-30",
+      "match": "Aix Maurienne vs Hyeres-Toulon",
+      "pari": "Vic Extérieur",
+      "cote": "2.30",
+      "resultat": "Vic Domicile",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-01-30",
+      "match": "St. Chamond vs Vichy",
+      "pari": "Vic Extérieur",
+      "cote": "2.12",
+      "resultat": "Vic Extérieur",
+      "profit": 1.12
+    },
+    {
+      "date": "2026-01-30",
+      "match": "ASA vs Quimper",
+      "pari": "Vic Extérieur",
+      "cote": "3.25",
+      "resultat": "Vic Domicile",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-01-30",
+      "match": "Monaco vs Virtus Bologna",
+      "pari": "Vic Domicile",
+      "cote": "1.15",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-01-30",
+      "match": "Baskonia vs Zalgiris Kaunas",
+      "pari": "Vic Extérieur",
+      "cote": "1.85",
+      "resultat": "Vic Domicile",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-01-30",
+      "match": "Lyon-Villeurbanne vs Panathinaikos",
+      "pari": "Vic Domicile",
+      "cote": "3.45",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-01-30",
+      "match": "Saint Quentin vs Limoges",
+      "pari": "Vic Extérieur",
+      "cote": "2.00",
+      "resultat": "Vic Extérieur",
+      "profit": 1.0
+    },
+    {
+      "date": "2026-01-30",
+      "match": "Poitiers vs Ada Blois",
+      "pari": "Vic Domicile",
+      "cote": "1.85",
+      "resultat": "Vic Extérieur",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-01-30",
+      "match": "Pau-Orthez vs Caen",
+      "pari": "Vic Extérieur",
+      "cote": "4.20",
+      "resultat": "Vic Domicile",
+      "profit": -1.0
+    },
+    {
+      "date": "2026-01-30",
+      "match": "Crvena zvezda vs Dubai",
+      "pari": "Vic Domicile",
+      "cote": "1.35",
+      "resultat": "Vic Domicile",
+      "profit": 0.35
+    }
+  ]
+}

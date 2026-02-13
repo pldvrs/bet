@@ -36,6 +36,10 @@ CREATE TABLE IF NOT EXISTS daily_projections_v2 (
 
     -- Explication du pari (affichée dans le dashboard)
     reasoning_text TEXT NOT NULL DEFAULT '',
+    -- Prono ML (aligné Deep Dive) : "Victoire Nanterre (@ 2.50)" ou "PASSER"
+    le_pari TEXT,
+    -- Style de match (ex. "⚖️ Balanced", "🔥 Shootout")
+    style_match TEXT,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -48,3 +52,7 @@ CREATE INDEX IF NOT EXISTS idx_daily_projections_v2_created_at
     ON daily_projections_v2(created_at DESC);
 
 COMMENT ON TABLE daily_projections_v2 IS 'Table de vérité des projections — Write Once (03_predict_daily), Read Many (04_app_dashboard). Pas de recalcul à la volée.';
+
+-- Si la table existait déjà : ajouter la colonne le_pari (prono ML aligné Deep Dive)
+ALTER TABLE daily_projections_v2 ADD COLUMN IF NOT EXISTS le_pari TEXT;
+ALTER TABLE daily_projections_v2 ADD COLUMN IF NOT EXISTS style_match TEXT;
